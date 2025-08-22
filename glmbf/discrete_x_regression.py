@@ -41,7 +41,7 @@ def mle(b_init, data, glm, fixed=(-1)):
     def objective(b):
         b = jax.lax.select(fixed, b_init, b)
         psi = X_unique @ b
-        return -jnp.sum(Ty * psi - n * glm.log_partition(psi))
+        return -jnp.sum(Ty * psi - n * glm.log_partition(psi)) + jnp.sum(b**2) * 1e-8
 
     opt = optax.lbfgs()
     bhat, optstate = run_opt(b_init, objective, opt, max_iter=1000, tol=1e-5)
