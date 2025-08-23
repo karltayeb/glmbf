@@ -23,7 +23,7 @@ def summarize_data(X, y, size, glm):
     Ty = jnp.zeros(X_unique.shape[0])
     n = Ty.at[indices].add(jnp.ones_like(y))
     Ty = Ty.at[indices].add(glm.suffstat(y))
-    return dict(n=n, Ty=Ty, X_unique=X_unique)
+    return dict(n=n, Ty=Ty, X_unique=X_unique, indices=indices)
 
 
 @partial(jax.jit, static_argnames=["glm", "fixed"])
