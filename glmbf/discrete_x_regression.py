@@ -27,7 +27,7 @@ def summarize_data(X, y, size, glm):
 
 
 @partial(jax.jit, static_argnames=["glm", "fixed"])
-def mle(b_init, data, glm, fixed=(-1)):
+def mle(b_init, data, penalty, glm, fixed=(-1)):
     """
     When X is discrete you can summarize the data for each unique value of X and then fit the glm
     this avoids requiring O(n) cost to each update of IRLS.
@@ -41,7 +41,10 @@ def mle(b_init, data, glm, fixed=(-1)):
     def objective(b):
         b = jax.lax.select(fixed, b_init, b)
         psi = X_unique @ b
-        return -jnp.sum(Ty * psi - n * glm.log_partition(psi)) + jnp.sum(b**2) * 1e-8
+        return (
+            -jnp.sum(Ty * psi - n * glm.log_partition(psi))
+            + 0.5 * jnp.sum(b**2) * penalty
+        )
 
     opt = optax.lbfgs()
     bhat, optstate = run_opt(b_init, objective, opt, max_iter=1000, tol=1e-5)
