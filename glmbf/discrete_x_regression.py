@@ -5,11 +5,11 @@ import jax
 from functools import partial
 import jax.numpy as jnp
 import optax
-from glmbf.optimization import run_opt
 import numpy as np
 from scipy.stats import binom
 from glmbf.binary_x_regression import px1x2
 from scipy.stats import poisson_binom
+from glmbf.optimization import lbfgs, newton_with_backtracking_line_search
 
 
 def Xdist_binom(n, p):
@@ -26,8 +26,10 @@ def summarize_data(X, y, size, glm):
     return dict(n=n, Ty=Ty, X_unique=X_unique, indices=indices)
 
 
-@partial(jax.jit, static_argnames=["glm", "fixed"])
-def mle(b_init, data, penalty, glm, fixed=(-1)):
+@partial(jax.jit, static_argnames=["glm", "fixed", "opt_fun"])
+def mle(
+    b_init, data, penalty, glm, fixed=(-1), opt_fun=newton_with_backtracking_line_search
+):
     """
     When X is discrete you can summarize the data for each unique value of X and then fit the glm
     this avoids requiring O(n) cost to each update of IRLS.
@@ -46,8 +48,7 @@ def mle(b_init, data, penalty, glm, fixed=(-1)):
             + 0.5 * jnp.sum(b**2) * penalty
         )
 
-    opt = optax.lbfgs()
-    bhat, optstate = run_opt(b_init, objective, opt, max_iter=1000, tol=1e-5)
+    bhat, optstate = opt_fun(b_init, objective, max_iter=1000, tol=1e-5)
     return bhat, optstate
 
 
@@ -80,10 +81,16 @@ def risk(c, b, X1dist, X2dist, P, glm):
     return -jnp.sum(pi2 * (P21 @ mean * eta2 - jax.vmap(glm.log_partition)(eta2)))
 
 
-def compute_asymptotic_mle(c_init, b, X1dist, X2dist, P, glm):
-    opt = optax.lbfgs()
+def compute_asymptotic_mle(c_init, b, X1dist, X2dist, P, glm, opt_fun=lbfgs):
+    """
+    c_init: initial guess of c to initialize optimization
+    b: true value of regression coefficients for x1
+    X1dist: marginal distribution of X1
+    X2dist: marginal distribution of X2
+    P: joint probability table P(X1, X2)
+    """
     objective = lambda c: risk(c, b, X1dist, X2dist, P, glm)
-    c, _ = run_opt(c_init, objective, opt, max_iter=100, tol=1e-5)
+    c, _ = opt_fun(c_init, objective, max_iter=100, tol=1e-5)
     return c
 
 

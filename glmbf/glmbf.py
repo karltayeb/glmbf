@@ -81,14 +81,16 @@ def compute_null_mle(b_init, X, y, glm):
     return final_b, opt_state
 
 
-def standard_errors(H, idx=-1):
+def stderr2(H, idx=-1):
+    # we do this litte inv(H/a + I * eps) /a
+    # take the absolute value because I wanted to handle edge cases where H is singular with can create pm infty
     a = jnp.trace(H)
-    return -jnp.diag(jnp.linalg.inv(H / a)) / a
+    return jnp.abs(jnp.diag(jnp.linalg.inv((H / a + jnp.eye(a.size) * 1e-10))) / a)
 
 
 @jax.jit
 def compute_log_abf(bhat, H, prior_variance):
-    s2 = standard_errors(H)[-1]
+    s2 = stderr2(H)[-1]
     return jnorm.logpdf(bhat[1], 0, jnp.sqrt(s2 + prior_variance)) - jnorm.logpdf(
         bhat[1], 0, jnp.sqrt(s2)
     )
@@ -96,7 +98,7 @@ def compute_log_abf(bhat, H, prior_variance):
 
 @jax.jit
 def compute_log_laplacebf(bhat, H, llr, prior_variance):
-    s2 = standard_errors(H)[-1]
+    s2 = stderr2(H)[-1]
     return (
         0.5 * jnp.log(2 * jnp.pi * s2)
         + llr
