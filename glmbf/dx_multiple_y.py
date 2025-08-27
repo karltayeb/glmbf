@@ -69,7 +69,7 @@ def compute_summary_stats_multiple_y(
         bhat=Bhat[:, 1],
         s2=s2,
         llr=llr,
-        null_intercept=b_init[0, 0],
+        null_intercept=b_init[:, 0],
         ll0=ll0,
         gradnorm=gradnorm,
     )
